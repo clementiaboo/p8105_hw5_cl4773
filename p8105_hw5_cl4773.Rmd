@@ -1,0 +1,196 @@
+---
+title: "p8105_hw5_cl4773"
+author: "Clement Li"
+date: "2025-11-13"
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+library(broom)
+library(ggplot2)
+```
+
+### Problem 1)
+
+#### Suppose you put 𝑛 people in a room, and want to know the probability that at least two people share a birthday. For simplicity, we’ll assume there are no leap years (i.e. there are only 365 days) and that birthdays are uniformly distributed over the year (which is actually not the case).
+
+#### Write a function that, for a fixed group size, randomly draws “birthdays” for each person; checks whether there are duplicate birthdays in the group; and returns TRUE or FALSE based on the result.
+
+```{r}
+set.seed(1267)
+birthday_sim = function(group_size) {
+  birthdays = sample(1:365, group_size, replace = TRUE)
+  return(length(birthdays) != length(unique(birthdays)))
+}
+```
+
+```{r}
+same_birthday = function(n) {
+  # randomly assign a birthday (1–365) to each of n people
+  birthdays = sample(1:365, size = n, replace = TRUE)
+  
+  # check if there are any duplicates
+  any(duplicated(birthdays))
+}
+```
+
+####  Next, run this function 10000 times for each group size between 2 and 50. For each group size, compute the probability that at least two people in the group will share a birthday by averaging across the 10000 simulation runs. Make a plot showing the probability as a function of group size, and comment on your results.
+
+Run Simulation
+```{r}
+group_sizes = 2:50
+n_sims = 10000
+shared_birthday_probs = map_dbl(group_sizes, ~mean(replicate(n_sims, birthday_sim(.x))))
+```
+
+Create Plot
+```{r}
+shared_birthday_probs_df <- tibble(group_size = group_sizes, shared_birthday_prob = shared_birthday_probs)
+
+shared_birthday_probs_df |> 
+  ggplot(aes(x = group_size, y = shared_birthday_prob)) + geom_point() + geom_line() + labs(title = "Probability of Sharing a Birthday by Group Size", x = "Group Size", y = "Probability of a Shared Birthday")
+```
+
+The results show that the probability of at least two people sharing a birthday rises quickly as group size increases. Around 23 people, this probability reaches roughly 50%, meaning a shared birthday is just as likely as not. Beyond this point, the probability continues to climb rapidly, approaching near certainty as the group becomes larger. 
+
+### Problem 2)
+
+#### When designing an experiment or analysis, a common question is whether it is likely that a true effect will be detected – put differently, whether a false null hypothesis will be rejected. The probability that a false null hypothesis is rejected is referred to as power, and it depends on several factors, including: the sample size; the effect size; and the error variance. In this problem, you will conduct a simulation to explore power in a one-sample t-test.
+
+#### First set the following design elements: Fix 𝑛=30, 𝜎=5 and Set 𝜇=0. 
+```{r}
+# Funcion that creates random samples, subtracting mean and p-value
+sim_mean_p = function(samp_size = 30, true_mean = 0, true_sd = 5, mu = 0) {
+  sim_df = 
+    tibble(
+      x = rnorm(samp_size, true_mean, true_sd)
+    )
+  s_mean = 
+    sim_df |> 
+    summarize(
+      samp_mean = mean(x),
+      p_val = t.test(x, mu = mu)|>broom::tidy()|>pull(p.value)|>round(3)
+    )
+  return(s_mean)
+}
+```
+
+####  Generate 5000 datasets from the model 𝑥∼𝑁𝑜𝑟𝑚𝑎𝑙[𝜇,𝜎]. Repeat the above for 𝜇={1,2,3,4,5,6}
+```{r}
+n = 5000
+mu_values = 0:6
+
+# Generate a list of tibbles for each value of mu
+sim_res_list = map(mu_values, function(mu) {
+  tibble(
+    iter = 1:n
+  ) |> 
+    mutate(samp_res = map(iter, ~sim_mean_p(samp_size = 30, true_mean = mu, true_sd = 5, mu = 0))) |> 
+    unnest(samp_res)
+})
+
+# Name the list based on mu values
+names(sim_res_list) = paste0("mu_", mu_values)
+
+# Combine all results into a single tibble with an additional column for `mu`
+combined_results = bind_rows(
+  map2(sim_res_list, mu_values, ~mutate(.x, mu = .y))
+)
+
+```
+
+#### Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of mu on the x axis. Describe the association between effect size and power.
+```{r}
+combined_results |> group_by(mu) |>
+  summarize(power = mean(p_val < 0.05)) |> 
+  ggplot(aes(x = mu, y = power)) + geom_point() + geom_line() + labs(title = "Power of Test", x = "True Value of Mu", y = "Proportion of Times the Null was Rejected")
+```
+
+There is a positive relationship between effect size and power. As μ increases, the true mean moves farther from the null value, creating a larger effect size. This greater separation between the true distribution and the null hypothesis makes it easier for the test to detect a difference and reject the null hypothesis. 
+
+#### Make a plot showing the average estimate of 𝜇̂ on the y axis and the true value of 𝜇 on the x axis. 
+
+#### Make a second plot (or overlay on the first) the average estimate of 𝜇̂ only in samples for which the null was rejected on the y axis and the true value of 𝜇 on the x axis. Is the sample average of 𝜇̂ across tests for which the null is rejected approximately equal to the true value of 𝜇? Why or why not?
+
+#### Overlay the second plot on the first plot
+```{r}
+combined_results |> group_by(mu) |>
+  summarize(est_mu = mean(samp_mean)) |> 
+  ggplot(aes(x = mu, y = est_mu)) + geom_point() + geom_line() + labs(title = "Average estimate of mu and average estimate of the null-rejected", x = "True value of mu", y = "Average estimate of mu") + 
+  geom_line(data = combined_results |> filter(p_val < 0.05) |> group_by(mu) |>
+               summarize(est_mu = mean(samp_mean)), aes(x = mu, y = est_mu), color = "magenta")
+```
+
+The sample average of μ among the tests where the null is rejected is not close to the true value of μ. This happens because the estimate of μ varies from sample to sample. When we only look at the subset of samples in which the null is rejected, we are conditioning on a specific outcome, which introduces additional variability. As a result, the average μ in this selected subset does not necessarily reflect the true mean.
+
+### Problem 3)
+
+#### The Washington Post has gathered data on homicides in 50 large U.S. cities and made the data available through a GitHub repository here. You can read their accompanying article here.
+```{r}
+# read in csv
+homicide_data <- read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv",
+                          show_col_types = FALSE)
+```
+
+#### Describe the raw data. 
+
+The Homicide dataset includes `r nrow(homicide_data)` observations and `r ncol(homicide_data)` variables. These variables are: uid, reported_date, victim_last, victim_first, victim_race, victim_age, victim_sex, city, state, lat, lon, and disposition. The data covers homicides that occurred in `r homicide_data |> pull(city) |> unique() |> length()` major U.S. cities. The variables provide detailed information on each incident, including a unique case identifier, the date and location, victim demographics, and the case outcome.
+
+Upon further inspection, the record with uid "Tul-000769" was found to have an incorrect state value. The state should be "OK" rather than "AL", based on the city name (“Tulsa”), the latitude and longitude, and consistency with the surrounding uid entries. The state value was therefore corrected to "OK" in the dataset.
+```{r}
+# Create a city_state variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”).
+homicide_data = homicide_data |>mutate(state = ifelse(uid == "Tul-000769", "OK", state))
+```
+
+#### Create a city_state variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”). 
+```{r}
+homicide_data_city = homicide_data |> 
+  mutate(city_state = str_c(city, ", ", state)) |> 
+  group_by(city_state) |> 
+  summarize(total_homicides = n(), unsolved_homicides = sum(disposition %in% c("Closed without arrest", "Open/No arrest")))
+```
+
+For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
+```{r}
+baltimore_data = homicide_data_city |> filter(city_state == "Baltimore, MD")
+baltimore_prop_test = prop.test(baltimore_data|>pull(unsolved_homicides), baltimore_data|>pull(total_homicides))
+baltimore_prop_test_tidy = baltimore_prop_test |> broom::tidy()
+```
+
+The estimated proportion of unsolved homicides in Baltimore, MD is `r baltimore_prop_test_tidy|>pull(estimate)|> round(2)`.
+
+#### Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
+```{r}
+homicide_data_city_prop_test <- homicide_data_city |> 
+  mutate(prop_test = map2(unsolved_homicides, total_homicides, ~prop.test(.x, .y))) |> 
+  mutate(prop_test_tidy = map(prop_test, broom::tidy)) |> 
+  unnest(prop_test_tidy) |> 
+  select(c("city_state","estimate", "conf.low", "conf.high")) |> 
+  mutate(estimate = round(estimate, 2), conf.low = round(conf.low, 2), conf.high = round(conf.high, 2))
+```
+
+#### Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
+```{r}
+homicide_data_city_prop_test |> 
+  ggplot(aes(x = reorder(city_state, estimate), y = estimate, ymin = conf.low, ymax = conf.high)) + 
+  geom_point() + 
+  geom_errorbar(width = 0.2) + 
+  coord_flip() + 
+  labs(title = "Estimated proportion of unsolved homicides and 95% CI by city", x = "City, State", y = "Estimated proportion of unsolved homicides") + 
+  theme(axis.text.y = element_text(size = 5), plot.title = element_text(size = 10))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
