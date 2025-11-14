@@ -36,7 +36,7 @@ shared_birthday_probs = map_dbl(group_sizes, ~mean(replicate(n_sims, birthday_si
 
 Create Plot
 ```{r}
-shared_birthday_probs_df <- tibble(group_size = group_sizes, shared_birthday_prob = shared_birthday_probs)
+shared_birthday_probs_df = tibble(group_size = group_sizes, shared_birthday_prob = shared_birthday_probs)
 
 shared_birthday_probs_df |> 
   ggplot(aes(x = group_size, y = shared_birthday_prob)) + geom_point() + geom_line() + labs(title = "Probability of Sharing a Birthday by Group Size", x = "Group Size", y = "Probability of a Shared Birthday")
@@ -119,7 +119,7 @@ The sample average of μ among the tests where the null is rejected is not close
 #### The Washington Post has gathered data on homicides in 50 large U.S. cities and made the data available through a GitHub repository here. You can read their accompanying article here.
 ```{r}
 # read in csv
-homicide_data <- read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv",
+homicide_data = read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv",
                           show_col_types = FALSE)
 ```
 
@@ -152,7 +152,7 @@ The estimated proportion of unsolved homicides in Baltimore, MD is `r baltimore_
 
 #### Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
 ```{r}
-homicide_data_city_prop_test <- homicide_data_city |> 
+homicide_data_city_prop_test = homicide_data_city |> 
   mutate(prop_test = map2(unsolved_homicides, total_homicides, ~prop.test(.x, .y))) |> 
   mutate(prop_test_tidy = map(prop_test, broom::tidy)) |> 
   unnest(prop_test_tidy) |> 
