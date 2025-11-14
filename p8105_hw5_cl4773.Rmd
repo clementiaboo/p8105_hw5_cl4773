@@ -25,16 +25,6 @@ birthday_sim = function(group_size) {
 }
 ```
 
-```{r}
-same_birthday = function(n) {
-  # randomly assign a birthday (1–365) to each of n people
-  birthdays = sample(1:365, size = n, replace = TRUE)
-  
-  # check if there are any duplicates
-  any(duplicated(birthdays))
-}
-```
-
 ####  Next, run this function 10000 times for each group size between 2 and 50. For each group size, compute the probability that at least two people in the group will share a birthday by averaging across the 10000 simulation runs. Make a plot showing the probability as a function of group size, and comment on your results.
 
 Run Simulation
