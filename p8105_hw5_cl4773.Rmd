@@ -5,7 +5,7 @@ date: "2025-11-13"
 output: github_document
 ---
 
-```{r}
+```{r include=FALSE}
 library(tidyverse)
 library(broom)
 library(ggplot2)
@@ -13,10 +13,7 @@ library(ggplot2)
 
 ### Problem 1)
 
-#### Suppose you put 𝑛 people in a room, and want to know the probability that at least two people share a birthday. For simplicity, we’ll assume there are no leap years (i.e. there are only 365 days) and that birthdays are uniformly distributed over the year (which is actually not the case).
-
-#### Write a function that, for a fixed group size, randomly draws “birthdays” for each person; checks whether there are duplicate birthdays in the group; and returns TRUE or FALSE based on the result.
-
+#### Suppose you put 𝑛 people in a room, and want to know the probability that at least two people share a birthday. For simplicity, we’ll assume there are no leap years (i.e. there are only 365 days) and that birthdays are uniformly distributed over the year (which is actually not the case). Write a function that, for a fixed group size, randomly draws “birthdays” for each person; checks whether there are duplicate birthdays in the group; and returns TRUE or FALSE based on the result.
 ```{r}
 set.seed(1267)
 
@@ -26,15 +23,13 @@ birthday_sim = function(group_size) {
 }
 ```
 
-####  Next, run this function 10000 times for each group size between 2 and 50. For each group size, compute the probability that at least two people in the group will share a birthday by averaging across the 10000 simulation runs. Make a plot showing the probability as a function of group size, and comment on your results.
-
-Run Simulation
+####  Next, run this function 10000 times for each group size between 2 and 50. For each group size, compute the probability that at least two people in the group will share a birthday by averaging across the 10000 simulation runs. 
 ```{r}
 group_sizes = 2:50
 shared_birthday_probs = map_dbl(group_sizes, ~ mean(replicate(10000, birthday_sim(.x))))
 ```
 
-Create Plot
+#### Make a plot showing the probability as a function of group size, and comment on your results.
 ```{r}
 tibble(
   group_size = group_sizes,
@@ -100,11 +95,7 @@ combined_results |>
 
 There is a positive relationship between effect size and power. As μ increases, the true mean moves farther from the null value, creating a larger effect size. This greater separation between the true distribution and the null hypothesis makes it easier for the test to detect a difference and reject the null hypothesis. 
 
-#### Make a plot showing the average estimate of 𝜇̂ on the y axis and the true value of 𝜇 on the x axis. 
-
-#### Make a second plot (or overlay on the first) the average estimate of 𝜇̂ only in samples for which the null was rejected on the y axis and the true value of 𝜇 on the x axis. Is the sample average of 𝜇̂ across tests for which the null is rejected approximately equal to the true value of 𝜇? Why or why not?
-
-#### Overlay the second plot on the first plot
+#### Make a plot showing the average estimate of 𝜇̂ on the y axis and the true value of 𝜇 on the x axis. Make a second plot (or overlay on the first) the average estimate of 𝜇̂ only in samples for which the null was rejected on the y axis and the true value of 𝜇 on the x axis. Is the sample average of 𝜇̂ across tests for which the null is rejected approximately equal to the true value of 𝜇? Why or why not?
 ```{r}
 avg_all = combined_results |>
   group_by(mu) |>
@@ -171,7 +162,9 @@ baltimore_prop_test = prop.test(
 baltimore_prop_test_tidy = broom::tidy(baltimore_prop_test)
 ```
 
-The estimated proportion of unsolved homicides in Baltimore, MD is `r baltimore_prop_test_tidy|>pull(estimate)|> round(2)`.
+The estimated proportion of unsolved homicides in Baltimore, MD is `r baltimore_prop_test_tidy |> pull(estimate) |> round(2)`.
+
+The corresponding 95% confidence interval is (`r baltimore_prop_test_tidy |> pull(conf.low) |> round(2)`,`r baltimore_prop_test_tidy |> pull(conf.high) |> round(2)`).
 
 #### Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
 ```{r}
